@@ -94,3 +94,45 @@ test('uses normalized URL as the primary stable ID', () => {
   assert.equal(core.makeStableId('one', canonical), core.makeStableId('two', canonical));
   assert.notEqual(core.makeStableId('one', ''), core.makeStableId('two', ''));
 });
+
+test('defines the exact spreadsheet schema and default settings', () => {
+  const config = core.getRadarDefaults('owner@example.com');
+
+  assert.deepEqual(Object.keys(config.sheets), [
+    'Opportunities',
+    'Keywords',
+    'Processed',
+    'Metrics',
+    'Settings'
+  ]);
+  assert.equal(config.sheets.Opportunities.length, 16);
+  assert.deepEqual(config.sheets.Processed, [
+    'id',
+    'gmail_message_id',
+    'normalized_url',
+    'processed_at',
+    'result',
+    'error_message'
+  ]);
+  assert.equal(config.settings.notification_email, 'owner@example.com');
+  assert.equal(config.settings.source_label, 'reddit-radar');
+  assert.equal(config.settings.batch_size, 50);
+  assert.equal(config.settings.high_threshold, 70);
+});
+
+test('production seed rules classify every configured F5Bot keyword', () => {
+  const config = core.getRadarDefaults('');
+  const thresholds = {
+    medium: config.settings.medium_threshold,
+    high: config.settings.high_threshold
+  };
+
+  for (const phrase of ['card value', 'centering', 'psa grade', 'should i grade', 'worth grading']) {
+    const result = core.scoreOpportunity(
+      { title: `${phrase}?`, excerpt: '', subreddit: 'PokemonTCG' },
+      config.rules,
+      thresholds
+    );
+    assert.ok(result.score > 0, phrase);
+  }
+});

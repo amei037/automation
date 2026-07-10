@@ -192,12 +192,82 @@ var RadarCore = (function () {
     return 'radar-' + hash_(source);
   }
 
+  function getRadarDefaults(notificationEmail) {
+    var sheets = {
+      Opportunities: [
+        'id', 'discovered_at', 'source_time', 'subreddit', 'author', 'title',
+        'excerpt', 'url', 'intent', 'score', 'matched_rules', 'priority',
+        'status', 'owner', 'reviewed_at', 'notes'
+      ],
+      Keywords: [
+        'rule_id', 'enabled', 'category', 'pattern', 'match_type',
+        'score_delta', 'description'
+      ],
+      Processed: [
+        'id', 'gmail_message_id', 'normalized_url', 'processed_at', 'result',
+        'error_message'
+      ],
+      Metrics: [
+        'date', 'alerts_scanned', 'unique_opportunities', 'high_priority',
+        'duplicates', 'ignored', 'replied', 'average_review_minutes'
+      ],
+      Settings: ['key', 'value', 'description']
+    };
+
+    var settings = {
+      notification_email: String(notificationEmail || ''),
+      source_label: 'reddit-radar',
+      processed_label: 'reddit-radar-processed',
+      error_label: 'reddit-radar-error',
+      lookback_days: 7,
+      batch_size: 50,
+      medium_threshold: 50,
+      high_threshold: 70
+    };
+
+    var rules = [
+      rule_('grading-worth', 'grading', 'worth grading', 'phrase', 40, 'Explicit grading decision'),
+      rule_('grading-should', 'grading', 'should i grade', 'phrase', 40, 'Explicit grading question'),
+      rule_('grading-psa', 'grading', 'psa grade', 'phrase', 40, 'PSA grading intent'),
+      rule_('condition-centering', 'condition', 'centering', 'contains', 20, 'Centering inspection'),
+      rule_('condition-details', 'condition', 'surface|corners?|edges?|scratches?|whitening', 'regex', 20, 'Condition inspection detail'),
+      rule_('value-card', 'value', 'card value', 'phrase', 15, 'Card value intent'),
+      rule_('value-comparison', 'value', 'how much.*worth|raw vs graded|psa 10 value', 'regex', 15, 'Value comparison'),
+      rule_('target-pokemontcg', 'other', '^PokemonTCG$', 'subreddit', 20, 'Target subreddit'),
+      rule_('target-mtgfinance', 'other', '^mtgfinance$', 'subreddit', 20, 'Target subreddit'),
+      rule_('target-baseballcards', 'other', '^baseballcards$', 'subreddit', 20, 'Target subreddit'),
+      rule_('target-tradingcardcommunity', 'other', '^tradingcardcommunity$', 'subreddit', 20, 'Target subreddit'),
+      rule_('target-basketballcards', 'other', '^basketballcards$', 'subreddit', 20, 'Target subreddit'),
+      rule_('target-pokeinvesting', 'other', '^PokeInvesting$', 'subreddit', 20, 'Target subreddit'),
+      rule_('target-sportscards', 'other', '^sportscards$', 'subreddit', 20, 'Target subreddit'),
+      rule_('target-hockeycards', 'other', '^hockeycards$', 'subreddit', 20, 'Target subreddit'),
+      rule_('question-language', 'other', '\\?|should i|is this|how much|worth', 'regex', 10, 'Question wording'),
+      rule_('noise-marketplace', 'other', 'for sale|buy now|shipping', 'regex', -40, 'Marketplace-only noise'),
+      rule_('noise-spam', 'other', 'hiring|job opening|promo code', 'regex', -50, 'Promotion or hiring noise')
+    ];
+
+    return { sheets: sheets, settings: settings, rules: rules };
+  }
+
+  function rule_(ruleId, category, pattern, matchType, scoreDelta, description) {
+    return {
+      ruleId: ruleId,
+      enabled: true,
+      category: category,
+      pattern: pattern,
+      matchType: matchType,
+      scoreDelta: scoreDelta,
+      description: description
+    };
+  }
+
   return {
     normalizeRedditUrl: normalizeRedditUrl,
     parseF5BotAlert: parseF5BotAlert,
     matchRule: matchRule,
     scoreOpportunity: scoreOpportunity,
-    makeStableId: makeStableId
+    makeStableId: makeStableId,
+    getRadarDefaults: getRadarDefaults
   };
 })();
 
