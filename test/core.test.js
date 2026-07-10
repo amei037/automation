@@ -136,3 +136,40 @@ test('production seed rules classify every configured F5Bot keyword', () => {
     assert.ok(result.score > 0, phrase);
   }
 });
+
+test('applies low, medium, and high thresholds at exact boundaries', () => {
+  const makeRule = (score) => [{
+    ruleId: `score-${score}`,
+    enabled: true,
+    category: 'grading',
+    pattern: 'match',
+    matchType: 'contains',
+    scoreDelta: score
+  }];
+  const alert = { title: 'match', excerpt: '', subreddit: '' };
+
+  assert.equal(core.scoreOpportunity(alert, makeRule(49), fixtures.thresholds).priority, 'low');
+  assert.equal(core.scoreOpportunity(alert, makeRule(50), fixtures.thresholds).priority, 'medium');
+  assert.equal(core.scoreOpportunity(alert, makeRule(70), fixtures.thresholds).priority, 'high');
+});
+
+test('builds an HTML-safe high-priority email summary', () => {
+  const html = core.buildNotificationHtml([{
+    score: 90,
+    intent: 'grading',
+    title: '<script>alert("x")</script>',
+    subreddit: 'PokemonTCG',
+    url: 'https://www.reddit.com/r/PokemonTCG/comments/abc/post'
+  }]);
+
+  assert.doesNotMatch(html, /<script>/);
+  assert.match(html, /&lt;script&gt;/);
+  assert.match(html, /90/);
+  assert.match(html, /https:\/\/www\.reddit\.com\/r\/PokemonTCG\/comments\/abc\/post/);
+});
+
+test('neutralizes spreadsheet formula prefixes in untrusted text', () => {
+  assert.equal(core.safeCellText('=IMPORTXML("https://example.com")'), '\'=IMPORTXML("https://example.com")');
+  assert.equal(core.safeCellText('+1+1'), "'+1+1");
+  assert.equal(core.safeCellText('normal title'), 'normal title');
+});

@@ -58,6 +58,163 @@ function runDemo() {
   appendRows_(getSheet_(RADAR_SHEET_NAMES.opportunities), opportunityRows);
   appendRows_(getSheet_(RADAR_SHEET_NAMES.processed), processedRows);
   sortOpportunities_();
+  refreshMetrics();
+}
+
+function processF5BotAlerts() {
+  ensureRadarReady_();
+
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return;
+
+  try {
+    var settings = loadSettings_();
+    var rules = loadRules_();
+    var thresholds = {
+      medium: settings.medium_threshold,
+      high: settings.high_threshold
+    };
+    var labels = {
+      source: getOrCreateLabel_(settings.source_label),
+      processed: getOrCreateLabel_(settings.processed_label),
+      error: getOrCreateLabel_(settings.error_label)
+    };
+    var query = 'label:"' + escapeGmailLabel_(settings.source_label) +
+      '" -label:"' + escapeGmailLabel_(settings.error_label) +
+      '" is:unread newer_than:' + Math.floor(settings.lookback_days) + 'd';
+    var threads = GmailApp.search(query, 0, Math.min(Math.floor(settings.batch_size), 50));
+    var messages = collectUnreadMessages_(threads, Math.min(Math.floor(settings.batch_size), 50));
+    var existing = loadProcessedIndex_();
+    var opportunityRows = [];
+    var processedRows = [];
+    var actions = [];
+    var highPriority = [];
+
+    messages.forEach(function (message) {
+      var messageId = message.getId();
+      if (existing.messageIds[messageId]) {
+        actions.push({ message: message, label: labels.processed, markRead: true });
+        return;
+      }
+
+      var parsed = RadarCore.parseF5BotAlert({
+        messageId: messageId,
+        sourceTime: message.getDate(),
+        subject: message.getSubject(),
+        body: message.getPlainBody() + '\n' + message.getBody()
+      });
+      var id = RadarCore.makeStableId(messageId, parsed.url);
+
+      if (!parsed.url) {
+        processedRows.push(toProcessedRow_(id, parsed, 'error', 'No Reddit URL found.'));
+        actions.push({ message: message, label: labels.error, markRead: false });
+        existing.messageIds[messageId] = true;
+        return;
+      }
+
+      if (existing.ids[id] || existing.urls[parsed.url]) {
+        processedRows.push(toProcessedRow_(id, parsed, 'duplicate', 'Normalized Reddit URL already processed.'));
+        actions.push({ message: message, label: labels.processed, markRead: true });
+        existing.messageIds[messageId] = true;
+        return;
+      }
+
+      var scored = RadarCore.scoreOpportunity(parsed, rules, thresholds);
+      scored.id = id;
+      if (scored.score === 0) {
+        processedRows.push(toProcessedRow_(id, parsed, 'ignored', 'Opportunity score is zero.'));
+      } else {
+        opportunityRows.push(toOpportunityRow_(scored, new Date()));
+        processedRows.push(toProcessedRow_(id, parsed, 'created', ''));
+        if (scored.priority === 'high') highPriority.push(scored);
+      }
+
+      actions.push({ message: message, label: labels.processed, markRead: true });
+      existing.ids[id] = true;
+      existing.messageIds[messageId] = true;
+      existing.urls[parsed.url] = true;
+    });
+
+    appendRows_(getSheet_(RADAR_SHEET_NAMES.opportunities), opportunityRows);
+    appendRows_(getSheet_(RADAR_SHEET_NAMES.processed), processedRows);
+    SpreadsheetApp.flush();
+    applyMessageActions_(actions);
+    sortOpportunities_();
+    refreshMetrics();
+    sendHighPrioritySummary_(highPriority, settings.notification_email);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function installTenMinuteTrigger() {
+  ensureRadarReady_();
+  removeRadarTriggers();
+  ScriptApp.newTrigger('processF5BotAlerts')
+    .timeBased()
+    .everyMinutes(10)
+    .create();
+}
+
+function removeRadarTriggers() {
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'processF5BotAlerts') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+}
+
+function refreshMetrics() {
+  var processedRows = readDataRows_(getSheet_(RADAR_SHEET_NAMES.processed));
+  var opportunityRows = readDataRows_(getSheet_(RADAR_SHEET_NAMES.opportunities));
+  var byDate = {};
+
+  processedRows.forEach(function (row) {
+    var key = dateKey_(row[3]);
+    if (!key) return;
+    var metrics = getDateMetrics_(byDate, key);
+    metrics.alerts += 1;
+    if (row[4] === 'created') metrics.unique += 1;
+    if (row[4] === 'duplicate') metrics.duplicates += 1;
+    if (row[4] === 'ignored') metrics.ignored += 1;
+  });
+
+  opportunityRows.forEach(function (row) {
+    var key = dateKey_(row[1]);
+    if (!key) return;
+    var metrics = getDateMetrics_(byDate, key);
+    if (row[11] === 'high') metrics.high += 1;
+    if (row[12] === 'replied') metrics.replied += 1;
+
+    var discoveredAt = asDate_(row[1]);
+    var reviewedAt = asDate_(row[14]);
+    if (discoveredAt && reviewedAt && reviewedAt >= discoveredAt) {
+      metrics.reviewMinutes.push((reviewedAt.getTime() - discoveredAt.getTime()) / 60000);
+    }
+  });
+
+  var rows = Object.keys(byDate).sort().map(function (key) {
+    var metrics = byDate[key];
+    var average = metrics.reviewMinutes.length
+      ? metrics.reviewMinutes.reduce(function (sum, value) { return sum + value; }, 0) / metrics.reviewMinutes.length
+      : '';
+    return [
+      key,
+      metrics.alerts,
+      metrics.unique,
+      metrics.high,
+      metrics.duplicates,
+      metrics.ignored,
+      metrics.replied,
+      average === '' ? '' : Math.round(average * 10) / 10
+    ];
+  });
+
+  var sheet = getSheet_(RADAR_SHEET_NAMES.metrics);
+  if (sheet.getLastRow() > 1) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
+  }
+  appendRows_(sheet, rows);
 }
 
 function loadSettings_() {
@@ -83,6 +240,9 @@ function loadSettings_() {
     if (!settings[key]) throw new Error('Settings sheet is missing ' + key + '.');
   });
   settings.notification_email = String(settings.notification_email || '').trim();
+  if (settings.medium_threshold >= settings.high_threshold || settings.high_threshold > 100) {
+    throw new Error('Settings thresholds must satisfy medium < high <= 100.');
+  }
   return settings;
 }
 
@@ -217,10 +377,10 @@ function toOpportunityRow_(scored, discoveredAt) {
     scored.id,
     discoveredAt,
     scored.sourceTime || '',
-    scored.subreddit || '',
-    scored.author || '',
-    scored.title || '',
-    scored.excerpt || '',
+    RadarCore.safeCellText(scored.subreddit || ''),
+    RadarCore.safeCellText(scored.author || ''),
+    RadarCore.safeCellText(scored.title || ''),
+    RadarCore.safeCellText(scored.excerpt || ''),
     scored.url || '',
     scored.intent,
     scored.score,
@@ -285,4 +445,84 @@ function getDemoFixtures_() {
       body: 'Buy now with shipping and promo code.\nr/PokemonTCG\nhttps://www.reddit.com/r/PokemonTCG/comments/demo3/cards_for_sale'
     }
   ];
+}
+
+function ensureRadarReady_() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var missing = Object.keys(RADAR_SHEET_NAMES).some(function (key) {
+    return !spreadsheet.getSheetByName(RADAR_SHEET_NAMES[key]);
+  });
+  if (missing) setupRadar();
+}
+
+function getOrCreateLabel_(name) {
+  return GmailApp.getUserLabelByName(name) || GmailApp.createLabel(name);
+}
+
+function escapeGmailLabel_(name) {
+  return String(name || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function collectUnreadMessages_(threads, limit) {
+  var messages = [];
+  for (var i = 0; i < threads.length && messages.length < limit; i += 1) {
+    var threadMessages = threads[i].getMessages();
+    for (var j = 0; j < threadMessages.length && messages.length < limit; j += 1) {
+      if (threadMessages[j].isUnread()) messages.push(threadMessages[j]);
+    }
+  }
+  return messages;
+}
+
+function applyMessageActions_(actions) {
+  actions.forEach(function (action) {
+    action.message.getThread().addLabel(action.label);
+    if (action.markRead) action.message.markRead();
+  });
+}
+
+function sendHighPrioritySummary_(items, recipient) {
+  if (!items.length || !recipient) return;
+  var subject = '[DEDC Reddit Radar] ' + items.length + ' high-priority opportunit' +
+    (items.length === 1 ? 'y' : 'ies');
+  var plainText = items.map(function (item) {
+    return item.score + ' | ' + item.intent + ' | r/' + item.subreddit + ' | ' +
+      item.title + '\n' + item.url;
+  }).join('\n\n');
+
+  MailApp.sendEmail({
+    to: recipient,
+    subject: subject,
+    body: plainText,
+    htmlBody: RadarCore.buildNotificationHtml(items)
+  });
+}
+
+function dateKey_(value) {
+  var date = asDate_(value);
+  return date ? Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM-dd') : '';
+}
+
+function asDate_(value) {
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
+    return value;
+  }
+  if (!value) return null;
+  var parsed = new Date(value);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getDateMetrics_(byDate, key) {
+  if (!byDate[key]) {
+    byDate[key] = {
+      alerts: 0,
+      unique: 0,
+      high: 0,
+      duplicates: 0,
+      ignored: 0,
+      replied: 0,
+      reviewMinutes: []
+    };
+  }
+  return byDate[key];
 }

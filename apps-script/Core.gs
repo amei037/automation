@@ -261,13 +261,47 @@ var RadarCore = (function () {
     };
   }
 
+  function escapeHtml_(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function buildNotificationHtml(items) {
+    var rows = (items || []).map(function (item) {
+      var url = normalizeRedditUrl(item.url);
+      var title = escapeHtml_(item.title || 'Untitled Reddit post');
+      var subreddit = escapeHtml_(item.subreddit ? 'r/' + item.subreddit : 'Reddit');
+      var intent = escapeHtml_(item.intent || 'other');
+      var score = escapeHtml_(item.score);
+      var link = url
+        ? '<a href="' + escapeHtml_(url) + '">Open Reddit post</a>'
+        : 'Reddit link unavailable';
+      return '<li><strong>' + score + ' · ' + intent + ' · ' + subreddit +
+        '</strong><br>' + title + '<br>' + link + '</li>';
+    });
+
+    return '<h2>DEDC Reddit Radar</h2>' +
+      '<p>New high-priority opportunities:</p><ol>' + rows.join('') + '</ol>';
+  }
+
+  function safeCellText(value) {
+    var text = String(value == null ? '' : value);
+    return /^[=+\-@]/.test(text) ? "'" + text : text;
+  }
+
   return {
     normalizeRedditUrl: normalizeRedditUrl,
     parseF5BotAlert: parseF5BotAlert,
     matchRule: matchRule,
     scoreOpportunity: scoreOpportunity,
     makeStableId: makeStableId,
-    getRadarDefaults: getRadarDefaults
+    getRadarDefaults: getRadarDefaults,
+    buildNotificationHtml: buildNotificationHtml,
+    safeCellText: safeCellText
   };
 })();
 
