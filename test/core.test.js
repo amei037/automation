@@ -2,8 +2,27 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
 const core = require('../apps-script/Core.gs');
 const fixtures = require('./fixtures');
+
+const integrationSandbox = { module: { exports: {} } };
+const integrationSource = fs.readFileSync(require.resolve('../apps-script/Code.gs'), 'utf8');
+vm.runInNewContext(
+  `${integrationSource}\nmodule.exports = { getDemoFixtures: getDemoFixtures_ };`,
+  integrationSandbox
+);
+const integration = integrationSandbox.module.exports;
+
+test('marks demo fixtures clearly and never links to a real Reddit post', () => {
+  const demoFixtures = integration.getDemoFixtures();
+
+  for (const fixture of demoFixtures) {
+    assert.match(core.parseF5BotAlert(fixture).title, /^\[DEMO\]/);
+    assert.match(fixture.body, /\/comments\/demo-placeholder-\d+\//);
+  }
+});
 
 test('normalizes Reddit subdomains and removes tracking data', () => {
   assert.equal(

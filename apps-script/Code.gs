@@ -424,20 +424,20 @@ function getDemoFixtures_() {
     {
       messageId: 'demo-grading',
       sourceTime: new Date(),
-      subject: 'should i grade - Reddit Links - Should I grade this card?',
-      body: 'The centering looks good but I am unsure about the corners.\nSubreddit: r/PokemonTCG\nAuthor: u/demo_collector\nhttps://www.reddit.com/r/PokemonTCG/comments/demo1/should_i_grade_this'
+      subject: 'should i grade - Reddit Links - [DEMO] Should I grade this card?',
+      body: 'The centering looks good but I am unsure about the corners.\nSubreddit: r/PokemonTCG\nAuthor: u/demo_collector\nhttps://www.reddit.com/r/PokemonTCG/comments/demo-placeholder-1/should_i_grade_this'
     },
     {
       messageId: 'demo-value',
       sourceTime: new Date(),
-      subject: 'card value - Reddit Links - Raw vs graded value?',
-      body: 'How much is this worth as a PSA 10?\nr/PokeInvesting\nhttps://www.reddit.com/r/PokeInvesting/comments/demo2/raw_vs_graded_value'
+      subject: 'card value - Reddit Links - [DEMO] Raw vs graded value?',
+      body: 'How much is this worth as a PSA 10?\nr/PokeInvesting\nhttps://www.reddit.com/r/PokeInvesting/comments/demo-placeholder-2/raw_vs_graded_value'
     },
     {
       messageId: 'demo-noise',
       sourceTime: new Date(),
-      subject: 'card value - Reddit Links - Cards for sale',
-      body: 'Buy now with shipping and promo code.\nr/PokemonTCG\nhttps://www.reddit.com/r/PokemonTCG/comments/demo3/cards_for_sale'
+      subject: 'card value - Reddit Links - [DEMO] Cards for sale',
+      body: 'Buy now with shipping and promo code.\nr/PokemonTCG\nhttps://www.reddit.com/r/PokemonTCG/comments/demo-placeholder-3/cards_for_sale'
     }
   ];
 }
