@@ -116,7 +116,6 @@ Apps Script 默认存在一个 `Code.gs`。删除其中原有内容，粘贴仓�
 确认 Gmail 中至少有一封满足以下条件的邮件：
 
 - 带有 `reddit-radar` 标签。
-- 处于未读状态。
 - 正文含可访问的 `reddit.com` 或 `redd.it` 链接。
 
 然后：
@@ -174,7 +173,8 @@ Apps Script 默认存在一个 `Code.gs`。删除其中原有内容，粘贴仓�
 
 ### 没有任何数据
 
-- 检查 Gmail 邮件是否带 `reddit-radar` 标签并保持未读。
+- 检查 Gmail 邮件是否带 `reddit-radar` 标签，且没有
+  `reddit-radar-processed` 或 `reddit-radar-error` 标签。
 - 检查 F5Bot 最近是否真的有命中。
 - 手动运行 `processF5BotAlerts`，然后打开 Apps Script 左侧“执行记录”。
 

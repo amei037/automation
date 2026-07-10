@@ -80,10 +80,11 @@ function processF5BotAlerts() {
       error: getOrCreateLabel_(settings.error_label)
     };
     var query = 'label:"' + escapeGmailLabel_(settings.source_label) +
+      '" -label:"' + escapeGmailLabel_(settings.processed_label) +
       '" -label:"' + escapeGmailLabel_(settings.error_label) +
-      '" is:unread newer_than:' + Math.floor(settings.lookback_days) + 'd';
+      '" newer_than:' + Math.floor(settings.lookback_days) + 'd';
     var threads = GmailApp.search(query, 0, Math.min(Math.floor(settings.batch_size), 50));
-    var messages = collectUnreadMessages_(threads, Math.min(Math.floor(settings.batch_size), 50));
+    var messages = collectMessages_(threads, Math.min(Math.floor(settings.batch_size), 50));
     var existing = loadProcessedIndex_();
     var opportunityRows = [];
     var processedRows = [];
@@ -458,12 +459,12 @@ function escapeGmailLabel_(name) {
   return String(name || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-function collectUnreadMessages_(threads, limit) {
+function collectMessages_(threads, limit) {
   var messages = [];
   for (var i = 0; i < threads.length && messages.length < limit; i += 1) {
     var threadMessages = threads[i].getMessages();
     for (var j = 0; j < threadMessages.length && messages.length < limit; j += 1) {
-      if (threadMessages[j].isUnread()) messages.push(threadMessages[j]);
+      messages.push(threadMessages[j]);
     }
   }
   return messages;
