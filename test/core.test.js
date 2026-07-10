@@ -33,6 +33,13 @@ test('returns an empty URL for malformed alerts', () => {
   assert.equal(core.parseF5BotAlert(fixtures.malformed).url, '');
 });
 
+test('extracts a Reddit URL that exists only in an HTML anchor attribute', () => {
+  assert.equal(
+    core.parseF5BotAlert(fixtures.htmlOnlyLink).url,
+    'https://www.reddit.com/r/PokemonTCG/comments/html123/is_this_worth_grading'
+  );
+});
+
 test('matches contains, phrase, subreddit, and safe regex rules', () => {
   assert.equal(core.matchRule('Good CENTERING', { matchType: 'contains', pattern: 'centering' }, ''), true);
   assert.equal(core.matchRule('Should I grade this?', { matchType: 'phrase', pattern: 'should i grade' }, ''), true);
@@ -171,5 +178,21 @@ test('builds an HTML-safe high-priority email summary', () => {
 test('neutralizes spreadsheet formula prefixes in untrusted text', () => {
   assert.equal(core.safeCellText('=IMPORTXML("https://example.com")'), '\'=IMPORTXML("https://example.com")');
   assert.equal(core.safeCellText('+1+1'), "'+1+1");
+  assert.equal(core.safeCellText('  =1+1'), "'  =1+1");
+  assert.equal(core.safeCellText('\t=1+1'), "'\t=1+1");
+  assert.equal(core.safeCellText('\r-1+1'), "'\r-1+1");
+  assert.equal(core.safeCellText('\n@SUM(A1:A2)'), "'\n@SUM(A1:A2)");
   assert.equal(core.safeCellText('normal title'), 'normal title');
+});
+
+test('deduplicates against opportunities when a processed audit row is missing', () => {
+  const processedRows = [];
+  const opportunityRows = [[
+    'radar-existing', '', '', '', '', '', '',
+    'https://www.reddit.com/r/PokemonTCG/comments/partial/write'
+  ]];
+  const index = core.buildDedupIndex(processedRows, opportunityRows);
+
+  assert.equal(index.ids['radar-existing'], true);
+  assert.equal(index.urls['https://www.reddit.com/r/PokemonTCG/comments/partial/write'], true);
 });

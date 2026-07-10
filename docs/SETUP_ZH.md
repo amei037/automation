@@ -209,4 +209,3 @@ Google 也会向脚本所有者发送失败通知。
 - 不保存 Reddit 密码、Token 或 Cookie。
 - 不自动执行任何 Reddit 互动。
 - Sheet 必须保持为受限访问。
-

@@ -94,4 +94,3 @@ During a three-day trial:
 - Alerts appear within 15 minutes under normal trigger timing.
 - At least five opportunities are judged relevant by a human.
 - Metrics demonstrate discovery volume and review status to management.
-

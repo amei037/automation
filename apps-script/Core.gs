@@ -90,9 +90,10 @@ var RadarCore = (function () {
 
   function parseF5BotAlert(input) {
     var source = input || {};
-    var body = htmlToText_(source.body || '');
+    var rawBody = String(source.body || '');
+    var body = htmlToText_(rawBody);
     var title = extractTitle_(source.subject || '');
-    var url = extractRedditUrl_(body + '\n' + (source.subject || ''));
+    var url = extractRedditUrl_(rawBody + '\n' + body + '\n' + (source.subject || ''));
 
     return {
       messageId: String(source.messageId || ''),
@@ -290,7 +291,24 @@ var RadarCore = (function () {
 
   function safeCellText(value) {
     var text = String(value == null ? '' : value);
-    return /^[=+\-@]/.test(text) ? "'" + text : text;
+    return /^[\s\u0000-\u001f]*[=+\-@]/.test(text) ? "'" + text : text;
+  }
+
+  function buildDedupIndex(processedRows, opportunityRows) {
+    var index = { ids: {}, messageIds: {}, urls: {} };
+
+    (processedRows || []).forEach(function (row) {
+      if (row[0]) index.ids[String(row[0])] = true;
+      if (row[1]) index.messageIds[String(row[1])] = true;
+      if (row[2]) index.urls[String(row[2])] = true;
+    });
+
+    (opportunityRows || []).forEach(function (row) {
+      if (row[0]) index.ids[String(row[0])] = true;
+      if (row[7]) index.urls[String(row[7])] = true;
+    });
+
+    return index;
   }
 
   return {
@@ -301,7 +319,8 @@ var RadarCore = (function () {
     makeStableId: makeStableId,
     getRadarDefaults: getRadarDefaults,
     buildNotificationHtml: buildNotificationHtml,
-    safeCellText: safeCellText
+    safeCellText: safeCellText,
+    buildDedupIndex: buildDedupIndex
   };
 })();
 

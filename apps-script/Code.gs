@@ -405,14 +405,9 @@ function toProcessedRow_(id, parsed, result, errorMessage) {
 }
 
 function loadProcessedIndex_() {
-  var rows = readDataRows_(getSheet_(RADAR_SHEET_NAMES.processed));
-  var index = { ids: {}, messageIds: {}, urls: {} };
-  rows.forEach(function (row) {
-    if (row[0]) index.ids[String(row[0])] = true;
-    if (row[1]) index.messageIds[String(row[1])] = true;
-    if (row[2]) index.urls[String(row[2])] = true;
-  });
-  return index;
+  var processedRows = readDataRows_(getSheet_(RADAR_SHEET_NAMES.processed));
+  var opportunityRows = readDataRows_(getSheet_(RADAR_SHEET_NAMES.opportunities));
+  return RadarCore.buildDedupIndex(processedRows, opportunityRows);
 }
 
 function sortOpportunities_() {
