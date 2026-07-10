@@ -102,6 +102,35 @@ var RadarCore = (function () {
     return lines.join(' ').replace(/\s+/g, ' ').trim();
   }
 
+  function extractAnchorTitle_(html, targetUrl) {
+    var anchorPattern = /<a\b[^>]*\bhref\s*=\s*(["'])([\s\S]*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
+    var match;
+
+    while ((match = anchorPattern.exec(String(html || ''))) !== null) {
+      if (extractRedditUrl_(match[2]) === targetUrl) return htmlToText_(match[3]);
+    }
+    return '';
+  }
+
+  function parseResultBlock_(source, block) {
+    var text = htmlToText_(block);
+    var url = extractRedditUrl_(block);
+    var title = extractAnchorTitle_(block, url);
+    var lines = text.split('\n').map(function (line) { return line.trim(); }).filter(Boolean);
+    var header = lines[0] || '';
+    var authorMatch = header.match(/\s+by\s+([A-Za-z0-9_-]+)\s*$/i);
+
+    return {
+      messageId: String(source.messageId || ''),
+      sourceTime: source.sourceTime || null,
+      title: title || extractTitle_(source.subject || ''),
+      excerpt: lines.slice(1).join(' ').replace(/\s+/g, ' ').trim(),
+      subreddit: extractSubreddit_(text, url),
+      author: authorMatch ? authorMatch[1] : extractAuthor_(text),
+      url: url
+    };
+  }
+
   function parseF5BotAlert(input) {
     var source = input || {};
     var rawBody = String(source.body || '');
@@ -118,6 +147,17 @@ var RadarCore = (function () {
       author: extractAuthor_(body),
       url: url
     };
+  }
+
+  function parseF5BotAlerts(input) {
+    var source = input || {};
+    var rawBody = String(source.body || '');
+    var blocks = rawBody.match(/<p\b[^>]*>[\s\S]*?<\/p>/gi) || [];
+    var results = blocks
+      .map(function (block) { return parseResultBlock_(source, block); })
+      .filter(function (result) { return result.url; });
+
+    return results.length ? results : [parseF5BotAlert(source)];
   }
 
   function matchRule(text, rule, subreddit) {
@@ -329,6 +369,7 @@ var RadarCore = (function () {
   return {
     normalizeRedditUrl: normalizeRedditUrl,
     parseF5BotAlert: parseF5BotAlert,
+    parseF5BotAlerts: parseF5BotAlerts,
     matchRule: matchRule,
     scoreOpportunity: scoreOpportunity,
     makeStableId: makeStableId,

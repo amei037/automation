@@ -66,6 +66,33 @@ test('extracts a Reddit URL encoded inside a Gmail redirect', () => {
   );
 });
 
+test('parses and scores each post in an F5Bot digest independently', () => {
+  const alerts = core.parseF5BotAlerts(fixtures.multiPostDigest);
+  const config = core.getRadarDefaults('');
+  const thresholds = {
+    medium: config.settings.medium_threshold,
+    high: config.settings.high_threshold
+  };
+
+  assert.equal(alerts.length, 3);
+  assert.deepEqual(
+    alerts.map((alert) => [alert.subreddit, alert.author, alert.title]),
+    [
+      ['Knife_Swap', 'Raccoon_Tactical', 'Curtiss F3 Medium Slicer'],
+      ['Pokemoncardappraisal', 'card_owner', 'Are these worth grading?'],
+      ['sportscards', 'CardLot', 'First big retail pull']
+    ]
+  );
+
+  const scored = alerts.map((alert) => core.scoreOpportunity(alert, config.rules, thresholds));
+  assert.equal(scored[0].score, 0);
+  assert.equal(scored[0].priority, 'ignored');
+  assert.equal(scored[1].intent, 'grading');
+  assert.equal(scored[1].priority, 'medium');
+  assert.equal(scored[2].intent, 'grading');
+  assert.equal(scored[2].priority, 'high');
+});
+
 test('matches contains, phrase, subreddit, and safe regex rules', () => {
   assert.equal(core.matchRule('Good CENTERING', { matchType: 'contains', pattern: 'centering' }, ''), true);
   assert.equal(core.matchRule('Should I grade this?', { matchType: 'phrase', pattern: 'should i grade' }, ''), true);
