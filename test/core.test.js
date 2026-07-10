@@ -101,8 +101,8 @@ test('matches contains, phrase, subreddit, and safe regex rules', () => {
   assert.equal(core.matchRule('anything', { matchType: 'regex', pattern: '[' }, ''), false);
 });
 
-test('classifies all five configured F5Bot phrases', () => {
-  for (const phrase of ['card value', 'centering', 'psa grade', 'should i grade', 'worth grading']) {
+test('classifies all four configured F5Bot phrases', () => {
+  for (const phrase of ['card value', 'psa grade', 'should i grade', 'worth grading']) {
     const result = core.scoreOpportunity(
       { title: `${phrase}?`, excerpt: '', subreddit: 'PokemonTCG' },
       fixtures.rules,
@@ -116,10 +116,10 @@ test('scores grading intent as high priority with evidence', () => {
   const parsed = core.parseF5BotAlert(fixtures.grading);
   const result = core.scoreOpportunity(parsed, fixtures.rules, fixtures.thresholds);
 
-  assert.equal(result.score, 90);
+  assert.equal(result.score, 70);
   assert.equal(result.intent, 'grading');
   assert.equal(result.priority, 'high');
-  assert.deepEqual(result.matchedRules, ['grading-should', 'condition-centering', 'target-pokemontcg', 'question']);
+  assert.deepEqual(result.matchedRules, ['grading-should', 'target-pokemontcg', 'question']);
 });
 
 test('clamps noisy marketplace posts to zero', () => {
@@ -187,7 +187,7 @@ test('production seed rules classify every configured F5Bot keyword', () => {
     high: config.settings.high_threshold
   };
 
-  for (const phrase of ['card value', 'centering', 'psa grade', 'should i grade', 'worth grading']) {
+  for (const phrase of ['card value', 'psa grade', 'should i grade', 'worth grading']) {
     const result = core.scoreOpportunity(
       { title: `${phrase}?`, excerpt: '', subreddit: 'PokemonTCG' },
       config.rules,
@@ -195,6 +195,18 @@ test('production seed rules classify every configured F5Bot keyword', () => {
     );
     assert.ok(result.score > 0, phrase);
   }
+});
+
+test('does not score centering by itself', () => {
+  const config = core.getRadarDefaults('');
+  const result = core.scoreOpportunity(
+    { title: 'Perfect centering', excerpt: '', subreddit: 'Knife_Swap' },
+    config.rules,
+    { medium: config.settings.medium_threshold, high: config.settings.high_threshold }
+  );
+
+  assert.equal(result.score, 0);
+  assert.equal(result.priority, 'ignored');
 });
 
 test('applies low, medium, and high thresholds at exact boundaries', () => {

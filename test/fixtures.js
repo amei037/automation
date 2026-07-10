@@ -65,7 +65,6 @@ const rules = [
   { ruleId: 'grading-worth', enabled: true, category: 'grading', pattern: 'worth grading', matchType: 'phrase', scoreDelta: 40 },
   { ruleId: 'grading-should', enabled: true, category: 'grading', pattern: 'should i grade', matchType: 'phrase', scoreDelta: 40 },
   { ruleId: 'grading-psa', enabled: true, category: 'grading', pattern: 'psa grade', matchType: 'phrase', scoreDelta: 40 },
-  { ruleId: 'condition-centering', enabled: true, category: 'condition', pattern: 'centering', matchType: 'contains', scoreDelta: 20 },
   { ruleId: 'value-card', enabled: true, category: 'value', pattern: 'card value', matchType: 'phrase', scoreDelta: 15 },
   { ruleId: 'value-worth', enabled: true, category: 'value', pattern: 'how much.*worth|raw vs graded|psa 10 value', matchType: 'regex', scoreDelta: 15 },
   { ruleId: 'target-pokemontcg', enabled: true, category: 'other', pattern: '^PokemonTCG$', matchType: 'subreddit', scoreDelta: 20 },
