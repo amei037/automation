@@ -1,0 +1,12 @@
+{
+  "name": "dedc-reddit-opportunity-radar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Zero-cost F5Bot Gmail to Google Sheets opportunity radar",
+  "scripts": {
+    "test": "node --test test/core.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
