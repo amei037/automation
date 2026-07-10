@@ -284,7 +284,6 @@ var RadarCore = (function () {
       rule_('grading-worth', 'grading', 'worth grading', 'phrase', 40, 'Explicit grading decision'),
       rule_('grading-should', 'grading', 'should i grade', 'phrase', 40, 'Explicit grading question'),
       rule_('grading-psa', 'grading', 'psa grade', 'phrase', 40, 'PSA grading intent'),
-      rule_('condition-centering', 'condition', 'centering', 'contains', 20, 'Centering inspection'),
       rule_('condition-details', 'condition', 'surface|corners?|edges?|scratches?|whitening', 'regex', 20, 'Condition inspection detail'),
       rule_('value-card', 'value', 'card value', 'phrase', 15, 'Card value intent'),
       rule_('value-comparison', 'value', 'how much.*worth|raw vs graded|psa 10 value', 'regex', 15, 'Value comparison'),
