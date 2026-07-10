@@ -52,10 +52,24 @@ var RadarCore = (function () {
   }
 
   function extractRedditUrl_(text) {
-    var urls = String(text || '').match(/https?:\/\/[^\s<>"']+/gi) || [];
-    for (var i = 0; i < urls.length; i += 1) {
-      var normalized = normalizeRedditUrl(urls[i]);
-      if (normalized) return normalized;
+    var raw = String(text || '');
+    var decodedHtml = decodeHtml_(raw);
+    var variants = [raw, decodedHtml];
+
+    try {
+      variants.push(decodeURIComponent(decodedHtml));
+    } catch (error) {
+      // A malformed percent escape should not prevent parsing ordinary links.
+    }
+
+    for (var i = 0; i < variants.length; i += 1) {
+      var urls = variants[i].match(
+        /https?:\/\/(?:[a-z0-9-]+\.)?reddit\.com\/[^\s<>"'&]+|https?:\/\/redd\.it\/[^\s<>"'&]+/gi
+      ) || [];
+      for (var j = 0; j < urls.length; j += 1) {
+        var normalized = normalizeRedditUrl(urls[j]);
+        if (normalized) return normalized;
+      }
     }
     return '';
   }
@@ -298,6 +312,7 @@ var RadarCore = (function () {
     var index = { ids: {}, messageIds: {}, urls: {} };
 
     (processedRows || []).forEach(function (row) {
+      if (String(row[4] || '').toLowerCase() === 'error') return;
       if (row[0]) index.ids[String(row[0])] = true;
       if (row[1]) index.messageIds[String(row[1])] = true;
       if (row[2]) index.urls[String(row[2])] = true;

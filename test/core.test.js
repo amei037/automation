@@ -59,6 +59,13 @@ test('extracts a Reddit URL that exists only in an HTML anchor attribute', () =>
   );
 });
 
+test('extracts a Reddit URL encoded inside a Gmail redirect', () => {
+  assert.equal(
+    core.parseF5BotAlert(fixtures.gmailWrappedLink).url,
+    'https://www.reddit.com/r/Pokemoncardappraisal/comments/wrapped123/are_these_worth_grading'
+  );
+});
+
 test('matches contains, phrase, subreddit, and safe regex rules', () => {
   assert.equal(core.matchRule('Good CENTERING', { matchType: 'contains', pattern: 'centering' }, ''), true);
   assert.equal(core.matchRule('Should I grade this?', { matchType: 'phrase', pattern: 'should i grade' }, ''), true);
@@ -214,4 +221,18 @@ test('deduplicates against opportunities when a processed audit row is missing',
 
   assert.equal(index.ids['radar-existing'], true);
   assert.equal(index.urls['https://www.reddit.com/r/PokemonTCG/comments/partial/write'], true);
+});
+
+test('allows messages with an error audit row to be retried', () => {
+  const index = core.buildDedupIndex([[
+    'radar-error',
+    'gmail-error-1',
+    '',
+    new Date('2026-07-10T05:00:00Z'),
+    'error',
+    'No Reddit URL found.'
+  ]], []);
+
+  assert.equal(index.ids['radar-error'], undefined);
+  assert.equal(index.messageIds['gmail-error-1'], undefined);
 });

@@ -38,6 +38,13 @@ const htmlOnlyLink = {
   body: '<p>The corners look clean.</p><a href="https://www.reddit.com/r/PokemonTCG/comments/html123/is_this_worth_grading/?utm_source=f5bot">Open post</a>'
 };
 
+const gmailWrappedLink = {
+  messageId: 'gmail-wrapped-link-1',
+  sourceTime: new Date('2026-07-10T05:06:07Z'),
+  subject: 'worth grading - Reddit Links - Are these worth grading?',
+  body: '<a href="https://www.google.com/url?q=https%3A%2F%2Fwww.reddit.com%2Fr%2FPokemoncardappraisal%2Fcomments%2Fwrapped123%2Fare_these_worth_grading%2F&amp;source=gmail">Are these worth grading?</a>'
+};
+
 const rules = [
   { ruleId: 'grading-worth', enabled: true, category: 'grading', pattern: 'worth grading', matchType: 'phrase', scoreDelta: 40 },
   { ruleId: 'grading-should', enabled: true, category: 'grading', pattern: 'should i grade', matchType: 'phrase', scoreDelta: 40 },
@@ -54,4 +61,4 @@ const rules = [
 
 const thresholds = { medium: 50, high: 70 };
 
-module.exports = { grading, value, malformed, htmlOnlyLink, rules, thresholds };
+module.exports = { grading, value, malformed, htmlOnlyLink, gmailWrappedLink, rules, thresholds };
