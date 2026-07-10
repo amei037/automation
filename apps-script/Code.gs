@@ -98,42 +98,44 @@ function processF5BotAlerts() {
         return;
       }
 
-      var parsed = RadarCore.parseF5BotAlert({
+      var parsedAlerts = RadarCore.parseF5BotAlerts({
         messageId: messageId,
         sourceTime: message.getDate(),
         subject: message.getSubject(),
         body: message.getPlainBody() + '\n' + message.getBody()
       });
-      var id = RadarCore.makeStableId(messageId, parsed.url);
-
-      if (!parsed.url) {
-        processedRows.push(toProcessedRow_(id, parsed, 'error', 'No Reddit URL found.'));
+      if (!parsedAlerts.length || !parsedAlerts[0].url) {
+        var malformed = parsedAlerts[0] || { messageId: messageId };
+        var malformedId = RadarCore.makeStableId(messageId, '');
+        processedRows.push(toProcessedRow_(malformedId, malformed, 'error', 'No Reddit URL found.'));
         actions.push({ message: message, label: labels.error, markRead: false });
         existing.messageIds[messageId] = true;
         return;
       }
 
-      if (existing.ids[id] || existing.urls[parsed.url]) {
-        processedRows.push(toProcessedRow_(id, parsed, 'duplicate', 'Normalized Reddit URL already processed.'));
-        actions.push({ message: message, label: labels.processed, markRead: true });
-        existing.messageIds[messageId] = true;
-        return;
-      }
+      parsedAlerts.forEach(function (parsed) {
+        var id = RadarCore.makeStableId(messageId, parsed.url);
+        if (existing.ids[id] || existing.urls[parsed.url]) {
+          processedRows.push(toProcessedRow_(id, parsed, 'duplicate', 'Normalized Reddit URL already processed.'));
+          return;
+        }
 
-      var scored = RadarCore.scoreOpportunity(parsed, rules, thresholds);
-      scored.id = id;
-      if (scored.score === 0) {
-        processedRows.push(toProcessedRow_(id, parsed, 'ignored', 'Opportunity score is zero.'));
-      } else {
-        opportunityRows.push(toOpportunityRow_(scored, new Date()));
-        processedRows.push(toProcessedRow_(id, parsed, 'created', ''));
-        if (scored.priority === 'high') highPriority.push(scored);
-      }
+        var scored = RadarCore.scoreOpportunity(parsed, rules, thresholds);
+        scored.id = id;
+        if (scored.score === 0) {
+          processedRows.push(toProcessedRow_(id, parsed, 'ignored', 'Opportunity score is zero.'));
+        } else {
+          opportunityRows.push(toOpportunityRow_(scored, new Date()));
+          processedRows.push(toProcessedRow_(id, parsed, 'created', ''));
+          if (scored.priority === 'high') highPriority.push(scored);
+        }
+
+        existing.ids[id] = true;
+        existing.urls[parsed.url] = true;
+      });
 
       actions.push({ message: message, label: labels.processed, markRead: true });
-      existing.ids[id] = true;
       existing.messageIds[messageId] = true;
-      existing.urls[parsed.url] = true;
     });
 
     appendRows_(getSheet_(RADAR_SHEET_NAMES.opportunities), opportunityRows);

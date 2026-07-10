@@ -45,6 +45,22 @@ const gmailWrappedLink = {
   body: '<a href="https://www.google.com/url?q=https%3A%2F%2Fwww.reddit.com%2Fr%2FPokemoncardappraisal%2Fcomments%2Fwrapped123%2Fare_these_worth_grading%2F&amp;source=gmail">Are these worth grading?</a>'
 };
 
+const multiPostDigest = {
+  messageId: 'gmail-multi-post-1',
+  sourceTime: new Date('2026-07-10T06:07:08Z'),
+  subject: 'F5Bot found something: centering, worth grading, should i grade',
+  body: [
+    '<h1>F5Bot found something!</h1>',
+    '<h2>Keyword: "centering"</h2>',
+    '<p>Reddit Posts (/r/Knife_Swap/): <a href="https://www.reddit.com/r/Knife_Swap/comments/knife123/slicer/">Curtiss F3 Medium Slicer</a> by Raccoon_Tactical<br><span>Centering: Perfect. Shipping included. Factory edge.</span></p>',
+    '<h2>Keyword: "worth grading"</h2>',
+    '<p>Reddit Posts (/r/Pokemoncardappraisal/): <a href="https://www.reddit.com/r/Pokemoncardappraisal/comments/card123/are_these_worth_grading/">Are these worth grading?</a> by card_owner<br><span>Not sure whether to keep these raw.</span></p>',
+    '<h2>Keyword: "should i grade"</h2>',
+    '<p>Reddit Posts (/r/sportscards/): <a href="https://www.reddit.com/r/sportscards/comments/sport123/first_big_retail_pull/">First big retail pull</a> by CardLot<br><span>Should I grade?</span></p>',
+    '<p>Do you have comments or suggestions about F5Bot?</p>'
+  ].join('')
+};
+
 const rules = [
   { ruleId: 'grading-worth', enabled: true, category: 'grading', pattern: 'worth grading', matchType: 'phrase', scoreDelta: 40 },
   { ruleId: 'grading-should', enabled: true, category: 'grading', pattern: 'should i grade', matchType: 'phrase', scoreDelta: 40 },
@@ -61,4 +77,13 @@ const rules = [
 
 const thresholds = { medium: 50, high: 70 };
 
-module.exports = { grading, value, malformed, htmlOnlyLink, gmailWrappedLink, rules, thresholds };
+module.exports = {
+  grading,
+  value,
+  malformed,
+  htmlOnlyLink,
+  gmailWrappedLink,
+  multiPostDigest,
+  rules,
+  thresholds
+};
