@@ -153,23 +153,23 @@ Run: `npm test && git diff --check`
 
 Expected: all tests pass and no whitespace errors.
 
-- [ ] **Step 2: Push Apps Script source**
+- [x] **Step 2: Push Apps Script source**
 
 Run: `npx clasp push`
 
 Expected: `Code.gs`, `Core.gs`, and `appsscript.json` upload successfully.
 
-- [ ] **Step 3: Execute repair once**
+- [x] **Step 3: Execute repair once**
 
 Run `repairRadarDataQuality()` in the Apps Script editor and confirm successful
 completion.
 
-- [ ] **Step 4: Inspect live sheets**
+- [x] **Step 4: Inspect live sheets**
 
 Confirm that no test/demo or invalid URL rows remain, no duplicate non-empty
 content keys remain, current-rule scores match stored scores, and Metrics
 headers/totals reconcile to source rows.
 
-- [ ] **Step 5: Run the repair a second time**
+- [x] **Step 5: Run the repair a second time**
 
 Confirm row counts and values do not change, proving idempotence.
