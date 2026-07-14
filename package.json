@@ -4,7 +4,7 @@
   "private": true,
   "description": "Zero-cost F5Bot Gmail to Google Sheets opportunity radar",
   "scripts": {
-    "test": "node --test test/core.test.js"
+    "test": "node --test test/*.test.js"
   },
   "engines": {
     "node": ">=20"

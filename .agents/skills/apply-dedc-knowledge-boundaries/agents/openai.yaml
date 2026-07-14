@@ -1,0 +1,4 @@
+interface:
+  display_name: "Apply DEDC Knowledge Boundaries"
+  short_description: "Apply cautious factual and brand-voice boundaries to card advice"
+  default_prompt: "Apply the approved DEDC knowledge and claims boundaries to this proposed Reddit answer."

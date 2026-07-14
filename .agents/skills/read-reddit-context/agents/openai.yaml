@@ -1,0 +1,4 @@
+interface:
+  display_name: "Read Reddit Context"
+  short_description: "Read a Reddit post and its community rules safely"
+  default_prompt: "Read the selected Reddit opportunity and return verified post context and subreddit rules."

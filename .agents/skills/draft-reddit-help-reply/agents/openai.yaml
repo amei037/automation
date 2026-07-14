@@ -1,0 +1,4 @@
+interface:
+  display_name: "Draft Reddit Help Reply"
+  short_description: "Draft one concise non-promotional English Reddit reply"
+  default_prompt: "Draft one helpful 80 to 180 word English reply using the verified context."

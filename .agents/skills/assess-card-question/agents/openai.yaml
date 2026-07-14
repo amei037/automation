@@ -1,0 +1,4 @@
+interface:
+  display_name: "Assess Card Question"
+  short_description: "Classify card-question relevance, intent, and missing evidence"
+  default_prompt: "Assess whether this Reddit opportunity is a real card question and identify its intent and missing information."

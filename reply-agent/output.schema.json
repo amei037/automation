@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dedc.internal/schemas/reddit-reply-output.schema.json",
+  "title": "Reddit Knowledge Reply Agent Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "decision",
+    "relevance",
+    "user_intent",
+    "context_status",
+    "missing_information",
+    "reply_draft_en",
+    "risk_flags",
+    "review_checklist",
+    "evidence_summary"
+  ],
+  "properties": {
+    "decision": { "enum": ["draft", "needs_context", "skip"] },
+    "relevance": { "enum": ["relevant", "uncertain", "irrelevant"] },
+    "user_intent": { "enum": ["grading", "condition", "value", "care", "other"] },
+    "context_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["post_fetched", "rules_fetched", "image_context_available"],
+      "properties": {
+        "post_fetched": { "type": "boolean" },
+        "rules_fetched": { "type": "boolean" },
+        "image_context_available": { "type": "boolean" }
+      }
+    },
+    "missing_information": { "type": "array", "items": { "type": "string" } },
+    "reply_draft_en": { "type": "string" },
+    "risk_flags": { "type": "array", "items": { "type": "string" } },
+    "review_checklist": { "type": "array", "items": { "type": "string" } },
+    "evidence_summary": { "type": "array", "items": { "type": "string" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "decision": { "const": "draft" } } },
+      "then": { "properties": { "reply_draft_en": { "minLength": 1 } } }
+    },
+    {
+      "if": { "properties": { "decision": { "enum": ["needs_context", "skip"] } } },
+      "then": { "properties": { "reply_draft_en": { "maxLength": 0 } } }
+    }
+  ]
+}

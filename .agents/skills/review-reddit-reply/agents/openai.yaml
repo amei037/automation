@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Reddit Reply"
+  short_description: "Block unsafe, promotional, unsupported, or rule-breaking drafts"
+  default_prompt: "Review this Reddit reply draft and return risk flags and a human checklist."

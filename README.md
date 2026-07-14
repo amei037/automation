@@ -39,6 +39,30 @@ npm test
 当前测试覆盖 URL 规范化、F5Bot 邮件解析、五个已配置关键词、评分边界、
 去重、HTML 转义和 Google Sheets 公式注入防护。
 
+## Reddit 知识回复 Agent
+
+仓库内的 `.agents/agents/reddit-knowledge-reply-agent.md` 定义了一个与 Radar
+分离的回复 Agent。它只处理人工选中的机会，自动读取完整 Reddit 帖子和
+subreddit 规则，并生成一份等待人工审核的英文知识型回复草稿。
+
+调用时提供 Radar 的单条机会：
+
+```json
+{
+  "opportunity_id": "opp-123",
+  "title": "Should I grade this card?",
+  "excerpt": "I am unsure about the corners.",
+  "subreddit": "PokemonTCG",
+  "url": "https://www.reddit.com/r/PokemonTCG/comments/abc123/example/",
+  "radar_intent": "grading",
+  "radar_score": 80
+}
+```
+
+Agent 必须返回 `reply-agent/output.schema.json` 定义的 JSON。帖子或规则读取不完整
+时返回 `needs_context`；无关机会返回 `skip`。它不会提及品牌或产品，也没有
+发布、私信、点赞或其他 Reddit 写入权限。
+
 ## 当前 F5Bot 配置
 
 - `card value`
