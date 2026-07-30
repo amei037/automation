@@ -1,0 +1,5 @@
+interface:
+  display_name: "DEDC 产品背景"
+  short_description: "提供 DEDC 产品事实、品牌规范、声明边界与数据状态"
+  brand_color: "#273B6C"
+  default_prompt: "Use $dedc-product-context to establish verified DEDC product, brand, and claim context before analysis."
