@@ -1,0 +1,4 @@
+interface:
+  display_name: "ASO 分析路由"
+  short_description: "判断数据阶段并选择必要且完整的 ASO 工作流"
+  default_prompt: "使用 $aso-analysis-router 判断这项 ASO 请求的数据阶段、执行流程和必要输入。"

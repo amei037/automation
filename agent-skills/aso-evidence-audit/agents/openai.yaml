@@ -1,0 +1,4 @@
+interface:
+  display_name: "ASO 证据审计"
+  short_description: "检查 ASO 材料来源、质量、范围和证据强度"
+  default_prompt: "使用 $aso-evidence-audit 在提出建议前审核这些 ASO 材料。"

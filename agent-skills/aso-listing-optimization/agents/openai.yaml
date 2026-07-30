@@ -1,0 +1,4 @@
+interface:
+  display_name: "ASO 商店文案优化"
+  short_description: "起草并验证 Apple 与 Google 商店元数据"
+  default_prompt: "使用 $aso-listing-optimization 根据已批准证据起草 Apple 和 Google 商店文案。"

@@ -1,0 +1,4 @@
+interface:
+  display_name: "ASO 实验规划"
+  short_description: "设计有明确证据、指标和停止规则的商店实验"
+  default_prompt: "使用 $aso-experiment-planner 设计具有明确证据、指标和停止规则的商店实验。"

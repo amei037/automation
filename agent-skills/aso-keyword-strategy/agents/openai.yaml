@@ -1,0 +1,4 @@
+interface:
+  display_name: "ASO 关键词策略"
+  short_description: "根据产品与市场证据制定关键词优先级和分配方案"
+  default_prompt: "使用 $aso-keyword-strategy 将这些竞品关键词材料转化为有依据的优先级策略。"
