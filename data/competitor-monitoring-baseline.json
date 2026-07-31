@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-31T07:12:00Z",
+  "updated_at": "2026-07-31T07:51:55Z",
   "observations": [
     {
       "date": "2026-07-31",
@@ -79,6 +79,45 @@
       "source": "Qimai/MobileAction export unavailable; public Google Play listing used only for store-presence verification",
       "availability": "unavailable",
       "note": "New observation. Its stated AI card condition analysis and pre-submission use case make it an adjacent competitor; no current keyword-rank data was accessible; Apple Ads does not apply to Google Play."
+    },
+    {
+      "date": "2026-07-27",
+      "platform": "Apple App Store",
+      "country": "US",
+      "competitor": "HoloDex - TCG Scan & Collect",
+      "store_id_or_url": "https://apps.apple.com/us/app/holodex-tcg-scan-collect/id6747442689",
+      "keyword": "card scanner",
+      "organic_rank": 9,
+      "apple_ads_bid_keyword": null,
+      "source": "HoloDex ASM export 2026-07-27 (user-provided third-party export)",
+      "availability": "available",
+      "note": "Explicit 搜索自然排名. The reported 3 bidding apps and 33% bidding share are market-level fields, not HoloDex bid evidence."
+    },
+    {
+      "date": "2026-07-27",
+      "platform": "Apple App Store",
+      "country": "US",
+      "competitor": "HoloDex - TCG Scan & Collect",
+      "store_id_or_url": "https://apps.apple.com/us/app/holodex-tcg-scan-collect/id6747442689",
+      "keyword": "pokemon card scanner",
+      "organic_rank": 5,
+      "apple_ads_bid_keyword": null,
+      "source": "HoloDex ASM export 2026-07-27 (user-provided third-party export)",
+      "availability": "available",
+      "note": "Explicit 搜索自然排名. The reported 1 bidding app and 100% bidding share are market-level fields, not HoloDex bid evidence."
+    },
+    {
+      "date": "2026-07-27",
+      "platform": "Apple App Store",
+      "country": "US",
+      "competitor": "HoloDex - TCG Scan & Collect",
+      "store_id_or_url": "https://apps.apple.com/us/app/holodex-tcg-scan-collect/id6747442689",
+      "keyword": "grading",
+      "organic_rank": 3,
+      "apple_ads_bid_keyword": null,
+      "source": "HoloDex ASM export 2026-07-27 (user-provided third-party export)",
+      "availability": "available",
+      "note": "Explicit 搜索自然排名. The reported 2 bidding apps and 50% bidding share are market-level fields, not HoloDex bid evidence."
     }
   ]
 }
