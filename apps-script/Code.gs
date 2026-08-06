@@ -11,6 +11,7 @@ var RADAR_SHEET_NAMES = {
 function setupRadar() {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var defaults = RadarCore.getRadarDefaults(getOwnerEmail_());
+  migrateMetricsHeaders_(spreadsheet);
 
   Object.keys(defaults.sheets).forEach(function (sheetName) {
     var sheet = spreadsheet.getSheetByName(sheetName) || spreadsheet.insertSheet(sheetName);
@@ -80,10 +81,11 @@ function processF5BotAlerts() {
       error: getOrCreateLabel_(settings.error_label)
     };
     var query = 'label:"' + escapeGmailLabel_(settings.source_label) +
+      '" -label:"' + escapeGmailLabel_(settings.processed_label) +
       '" -label:"' + escapeGmailLabel_(settings.error_label) +
-      '" is:unread newer_than:' + Math.floor(settings.lookback_days) + 'd';
+      '" newer_than:' + Math.floor(settings.lookback_days) + 'd';
     var threads = GmailApp.search(query, 0, Math.min(Math.floor(settings.batch_size), 50));
-    var messages = collectUnreadMessages_(threads, Math.min(Math.floor(settings.batch_size), 50));
+    var messages = collectMessages_(threads, Math.min(Math.floor(settings.batch_size), 50));
     var existing = loadProcessedIndex_();
     var opportunityRows = [];
     var processedRows = [];
@@ -97,42 +99,61 @@ function processF5BotAlerts() {
         return;
       }
 
-      var parsed = RadarCore.parseF5BotAlert({
+      var rawAlerts = RadarCore.parseF5BotAlerts({
         messageId: messageId,
         sourceTime: message.getDate(),
         subject: message.getSubject(),
         body: message.getPlainBody() + '\n' + message.getBody()
       });
-      var id = RadarCore.makeStableId(messageId, parsed.url);
-
-      if (!parsed.url) {
-        processedRows.push(toProcessedRow_(id, parsed, 'error', 'No Reddit URL found.'));
+      var parsedAlerts = rawAlerts.map(prepareParsedAlert_).filter(function (parsed) {
+        return parsed !== null;
+      });
+      if (!parsedAlerts.length || !parsedAlerts[0].url) {
+        var malformed = rawAlerts[0] || { messageId: messageId };
+        var malformedId = RadarCore.makeStableId(messageId, '');
+        processedRows.push(toProcessedRow_(malformedId, malformed, 'error', 'No Reddit URL found.'));
         actions.push({ message: message, label: labels.error, markRead: false });
         existing.messageIds[messageId] = true;
         return;
       }
 
-      if (existing.ids[id] || existing.urls[parsed.url]) {
-        processedRows.push(toProcessedRow_(id, parsed, 'duplicate', 'Normalized Reddit URL already processed.'));
-        actions.push({ message: message, label: labels.processed, markRead: true });
-        existing.messageIds[messageId] = true;
-        return;
-      }
+      parsedAlerts.forEach(function (parsed) {
+        var id = RadarCore.makeStableId(messageId, parsed.url);
+        if (existing.ids[id] || existing.urls[parsed.url]) {
+          processedRows.push(toProcessedRow_(id, parsed, 'duplicate', 'Normalized Reddit URL already processed.'));
+          return;
+        }
 
-      var scored = RadarCore.scoreOpportunity(parsed, rules, thresholds);
-      scored.id = id;
-      if (scored.score === 0) {
-        processedRows.push(toProcessedRow_(id, parsed, 'ignored', 'Opportunity score is zero.'));
-      } else {
-        opportunityRows.push(toOpportunityRow_(scored, new Date()));
-        processedRows.push(toProcessedRow_(id, parsed, 'created', ''));
-        if (scored.priority === 'high') highPriority.push(scored);
-      }
+        var contentKey = RadarCore.makeContentKey(parsed);
+        if (contentKey && existing.contentKeys[contentKey] !== undefined) {
+          processedRows.push(toProcessedRow_(
+            id,
+            parsed,
+            'duplicate',
+            'Content duplicate of ' + existing.contentKeys[contentKey] + '.'
+          ));
+          existing.ids[id] = true;
+          existing.urls[parsed.url] = true;
+          return;
+        }
+
+        var scored = RadarCore.scoreOpportunity(parsed, rules, thresholds);
+        scored.id = id;
+        if (scored.score === 0) {
+          processedRows.push(toProcessedRow_(id, parsed, 'ignored', 'Opportunity score is zero.'));
+        } else {
+          opportunityRows.push(toOpportunityRow_(scored, new Date()));
+          processedRows.push(toProcessedRow_(id, parsed, 'created', ''));
+          if (scored.priority === 'high') highPriority.push(scored);
+          if (contentKey) existing.contentKeys[contentKey] = id;
+        }
+
+        existing.ids[id] = true;
+        existing.urls[parsed.url] = true;
+      });
 
       actions.push({ message: message, label: labels.processed, markRead: true });
-      existing.ids[id] = true;
       existing.messageIds[messageId] = true;
-      existing.urls[parsed.url] = true;
     });
 
     appendRows_(getSheet_(RADAR_SHEET_NAMES.opportunities), opportunityRows);
@@ -156,6 +177,36 @@ function installTenMinuteTrigger() {
     .create();
 }
 
+function repairRadarDataQuality() {
+  ensureRadarReady_();
+
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var settings = loadSettings_();
+  var rules = loadRules_();
+  var thresholds = {
+    medium: settings.medium_threshold,
+    high: settings.high_threshold
+  };
+  var opportunitiesSheet = getSheet_(RADAR_SHEET_NAMES.opportunities);
+  var processedSheet = getSheet_(RADAR_SHEET_NAMES.processed);
+  var result = RadarCore.reconcileRadarData(
+    readDataRows_(opportunitiesSheet),
+    readDataRows_(processedSheet),
+    rules,
+    thresholds
+  );
+
+  replaceDataRows_(opportunitiesSheet, result.opportunityRows);
+  replaceDataRows_(processedSheet, result.processedRows);
+  migrateMetricsHeaders_(spreadsheet);
+  configureOpportunitySheet_(opportunitiesSheet);
+  sortOpportunities_();
+  refreshMetrics();
+  SpreadsheetApp.flush();
+  Logger.log(JSON.stringify(result.summary));
+  return result.summary;
+}
+
 function removeRadarTriggers() {
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
     if (trigger.getHandlerFunction() === 'processF5BotAlerts') {
@@ -165,6 +216,7 @@ function removeRadarTriggers() {
 }
 
 function refreshMetrics() {
+  migrateMetricsHeaders_(SpreadsheetApp.getActiveSpreadsheet());
   var processedRows = readDataRows_(getSheet_(RADAR_SHEET_NAMES.processed));
   var opportunityRows = readDataRows_(getSheet_(RADAR_SHEET_NAMES.opportunities));
   var byDate = {};
@@ -372,6 +424,32 @@ function appendRows_(sheet, rows) {
   sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
 }
 
+function replaceDataRows_(sheet, rows) {
+  if (sheet.getLastRow() > 1) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
+  }
+  if (rows.length) {
+    sheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+  }
+}
+
+function migrateMetricsHeaders_(spreadsheet) {
+  var sheet = spreadsheet.getSheetByName(RADAR_SHEET_NAMES.metrics);
+  if (!sheet || sheet.getLastRow() === 0) return;
+
+  var expected = RadarCore.getRadarDefaults('').sheets.Metrics;
+  var legacy = [
+    'date', 'alerts_scanned', 'unique_opportunities', 'high_priority',
+    'duplicates', 'ignored', 'replied', 'average_review_minutes'
+  ];
+  var existing = sheet.getRange(1, 1, 1, expected.length).getValues()[0];
+  if (existing.join('\u001f') === expected.join('\u001f')) return;
+  if (existing.join('\u001f') !== legacy.join('\u001f')) {
+    throw new Error('Unexpected headers in sheet ' + RADAR_SHEET_NAMES.metrics + '.');
+  }
+  sheet.getRange(1, 1, 1, expected.length).setValues([expected]);
+}
+
 function toOpportunityRow_(scored, discoveredAt) {
   return [
     scored.id,
@@ -408,6 +486,19 @@ function loadProcessedIndex_() {
   var processedRows = readDataRows_(getSheet_(RADAR_SHEET_NAMES.processed));
   var opportunityRows = readDataRows_(getSheet_(RADAR_SHEET_NAMES.opportunities));
   return RadarCore.buildDedupIndex(processedRows, opportunityRows);
+}
+
+function prepareParsedAlert_(parsed) {
+  var source = parsed || {};
+  var normalizedUrl = RadarCore.normalizeRedditUrl(source.url);
+  if (!normalizedUrl) return null;
+
+  var prepared = {};
+  Object.keys(source).forEach(function (key) {
+    prepared[key] = source[key];
+  });
+  prepared.url = normalizedUrl;
+  return prepared;
 }
 
 function sortOpportunities_() {
@@ -458,12 +549,12 @@ function escapeGmailLabel_(name) {
   return String(name || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-function collectUnreadMessages_(threads, limit) {
+function collectMessages_(threads, limit) {
   var messages = [];
   for (var i = 0; i < threads.length && messages.length < limit; i += 1) {
     var threadMessages = threads[i].getMessages();
     for (var j = 0; j < threadMessages.length && messages.length < limit; j += 1) {
-      if (threadMessages[j].isUnread()) messages.push(threadMessages[j]);
+      messages.push(threadMessages[j]);
     }
   }
   return messages;

@@ -38,11 +38,33 @@ const htmlOnlyLink = {
   body: '<p>The corners look clean.</p><a href="https://www.reddit.com/r/PokemonTCG/comments/html123/is_this_worth_grading/?utm_source=f5bot">Open post</a>'
 };
 
+const gmailWrappedLink = {
+  messageId: 'gmail-wrapped-link-1',
+  sourceTime: new Date('2026-07-10T05:06:07Z'),
+  subject: 'worth grading - Reddit Links - Are these worth grading?',
+  body: '<a href="https://www.google.com/url?q=https%3A%2F%2Fwww.reddit.com%2Fr%2FPokemoncardappraisal%2Fcomments%2Fwrapped123%2Fare_these_worth_grading%2F&amp;source=gmail">Are these worth grading?</a>'
+};
+
+const multiPostDigest = {
+  messageId: 'gmail-multi-post-1',
+  sourceTime: new Date('2026-07-10T06:07:08Z'),
+  subject: 'F5Bot found something: centering, worth grading, should i grade',
+  body: [
+    '<h1>F5Bot found something!</h1>',
+    '<h2>Keyword: "centering"</h2>',
+    '<p>Reddit Posts (/r/Knife_Swap/): <a href="https://www.reddit.com/r/Knife_Swap/comments/knife123/slicer/">Curtiss F3 Medium Slicer</a> by Raccoon_Tactical<br><span>Centering: Perfect. Shipping included. Factory edge.</span></p>',
+    '<h2>Keyword: "worth grading"</h2>',
+    '<p>Reddit Posts (/r/Pokemoncardappraisal/): <a href="https://www.reddit.com/r/Pokemoncardappraisal/comments/card123/are_these_worth_grading/">Are these worth grading?</a> by card_owner<br><span>Not sure whether to keep these raw.</span></p>',
+    '<h2>Keyword: "should i grade"</h2>',
+    '<p>Reddit Posts (/r/sportscards/): <a href="https://www.reddit.com/r/sportscards/comments/sport123/first_big_retail_pull/">First big retail pull</a> by CardLot<br><span>Should I grade?</span></p>',
+    '<p>Do you have comments or suggestions about F5Bot?</p>'
+  ].join('')
+};
+
 const rules = [
   { ruleId: 'grading-worth', enabled: true, category: 'grading', pattern: 'worth grading', matchType: 'phrase', scoreDelta: 40 },
   { ruleId: 'grading-should', enabled: true, category: 'grading', pattern: 'should i grade', matchType: 'phrase', scoreDelta: 40 },
   { ruleId: 'grading-psa', enabled: true, category: 'grading', pattern: 'psa grade', matchType: 'phrase', scoreDelta: 40 },
-  { ruleId: 'condition-centering', enabled: true, category: 'condition', pattern: 'centering', matchType: 'contains', scoreDelta: 20 },
   { ruleId: 'value-card', enabled: true, category: 'value', pattern: 'card value', matchType: 'phrase', scoreDelta: 15 },
   { ruleId: 'value-worth', enabled: true, category: 'value', pattern: 'how much.*worth|raw vs graded|psa 10 value', matchType: 'regex', scoreDelta: 15 },
   { ruleId: 'target-pokemontcg', enabled: true, category: 'other', pattern: '^PokemonTCG$', matchType: 'subreddit', scoreDelta: 20 },
@@ -54,4 +76,13 @@ const rules = [
 
 const thresholds = { medium: 50, high: 70 };
 
-module.exports = { grading, value, malformed, htmlOnlyLink, rules, thresholds };
+module.exports = {
+  grading,
+  value,
+  malformed,
+  htmlOnlyLink,
+  gmailWrappedLink,
+  multiPostDigest,
+  rules,
+  thresholds
+};

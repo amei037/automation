@@ -52,10 +52,24 @@ var RadarCore = (function () {
   }
 
   function extractRedditUrl_(text) {
-    var urls = String(text || '').match(/https?:\/\/[^\s<>"']+/gi) || [];
-    for (var i = 0; i < urls.length; i += 1) {
-      var normalized = normalizeRedditUrl(urls[i]);
-      if (normalized) return normalized;
+    var raw = String(text || '');
+    var decodedHtml = decodeHtml_(raw);
+    var variants = [raw, decodedHtml];
+
+    try {
+      variants.push(decodeURIComponent(decodedHtml));
+    } catch (error) {
+      // A malformed percent escape should not prevent parsing ordinary links.
+    }
+
+    for (var i = 0; i < variants.length; i += 1) {
+      var urls = variants[i].match(
+        /https?:\/\/(?:[a-z0-9-]+\.)?reddit\.com\/[^\s<>"'&]+|https?:\/\/redd\.it\/[^\s<>"'&]+/gi
+      ) || [];
+      for (var j = 0; j < urls.length; j += 1) {
+        var normalized = normalizeRedditUrl(urls[j]);
+        if (normalized) return normalized;
+      }
     }
     return '';
   }
@@ -88,6 +102,35 @@ var RadarCore = (function () {
     return lines.join(' ').replace(/\s+/g, ' ').trim();
   }
 
+  function extractAnchorTitle_(html, targetUrl) {
+    var anchorPattern = /<a\b[^>]*\bhref\s*=\s*(["'])([\s\S]*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
+    var match;
+
+    while ((match = anchorPattern.exec(String(html || ''))) !== null) {
+      if (extractRedditUrl_(match[2]) === targetUrl) return htmlToText_(match[3]);
+    }
+    return '';
+  }
+
+  function parseResultBlock_(source, block) {
+    var text = htmlToText_(block);
+    var url = extractRedditUrl_(block);
+    var title = extractAnchorTitle_(block, url);
+    var lines = text.split('\n').map(function (line) { return line.trim(); }).filter(Boolean);
+    var header = lines[0] || '';
+    var authorMatch = header.match(/\s+by\s+([A-Za-z0-9_-]+)\s*$/i);
+
+    return {
+      messageId: String(source.messageId || ''),
+      sourceTime: source.sourceTime || null,
+      title: title || extractTitle_(source.subject || ''),
+      excerpt: lines.slice(1).join(' ').replace(/\s+/g, ' ').trim(),
+      subreddit: extractSubreddit_(text, url),
+      author: authorMatch ? authorMatch[1] : extractAuthor_(text),
+      url: url
+    };
+  }
+
   function parseF5BotAlert(input) {
     var source = input || {};
     var rawBody = String(source.body || '');
@@ -104,6 +147,17 @@ var RadarCore = (function () {
       author: extractAuthor_(body),
       url: url
     };
+  }
+
+  function parseF5BotAlerts(input) {
+    var source = input || {};
+    var rawBody = String(source.body || '');
+    var blocks = rawBody.match(/<p\b[^>]*>[\s\S]*?<\/p>/gi) || [];
+    var results = blocks
+      .map(function (block) { return parseResultBlock_(source, block); })
+      .filter(function (result) { return result.url; });
+
+    return results.length ? results : [parseF5BotAlert(source)];
   }
 
   function matchRule(text, rule, subreddit) {
@@ -193,6 +247,31 @@ var RadarCore = (function () {
     return 'radar-' + hash_(source);
   }
 
+  function normalizeIdentityText_(value) {
+    return String(value || '')
+      .toLowerCase()
+      .replace(/[\u2018\u2019\u201c\u201d]/g, '')
+      .replace(/[^a-z0-9_\u00c0-\uffff]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function makeContentKey(source) {
+    var item = source || {};
+    var author = normalizeIdentityText_(item.author);
+    var title = normalizeIdentityText_(item.title);
+    return author && title ? author + '|' + title : '';
+  }
+
+  function isTestOrDemoOpportunity(source) {
+    var item = source || {};
+    var title = String(item.title || '');
+    var url = String(item.url || '');
+    return /^\s*\[(?:test|demo)\]/i.test(title) ||
+      /(?:test|demo)-placeholder/i.test(url) ||
+      /\/comments\/demo[12](?:\/|$)/i.test(url);
+  }
+
   function getRadarDefaults(notificationEmail) {
     var sheets = {
       Opportunities: [
@@ -209,8 +288,9 @@ var RadarCore = (function () {
         'error_message'
       ],
       Metrics: [
-        'date', 'alerts_scanned', 'unique_opportunities', 'high_priority',
-        'duplicates', 'ignored', 'replied', 'average_review_minutes'
+        'date', 'processed_items', 'created_opportunities',
+        'high_priority_opportunities', 'duplicate_items', 'ignored_items',
+        'replied_opportunities', 'average_review_minutes'
       ],
       Settings: ['key', 'value', 'description']
     };
@@ -230,7 +310,6 @@ var RadarCore = (function () {
       rule_('grading-worth', 'grading', 'worth grading', 'phrase', 40, 'Explicit grading decision'),
       rule_('grading-should', 'grading', 'should i grade', 'phrase', 40, 'Explicit grading question'),
       rule_('grading-psa', 'grading', 'psa grade', 'phrase', 40, 'PSA grading intent'),
-      rule_('condition-centering', 'condition', 'centering', 'contains', 20, 'Centering inspection'),
       rule_('condition-details', 'condition', 'surface|corners?|edges?|scratches?|whitening', 'regex', 20, 'Condition inspection detail'),
       rule_('value-card', 'value', 'card value', 'phrase', 15, 'Card value intent'),
       rule_('value-comparison', 'value', 'how much.*worth|raw vs graded|psa 10 value', 'regex', 15, 'Value comparison'),
@@ -295,9 +374,10 @@ var RadarCore = (function () {
   }
 
   function buildDedupIndex(processedRows, opportunityRows) {
-    var index = { ids: {}, messageIds: {}, urls: {} };
+    var index = { ids: {}, messageIds: {}, urls: {}, contentKeys: {} };
 
     (processedRows || []).forEach(function (row) {
+      if (String(row[4] || '').toLowerCase() === 'error') return;
       if (row[0]) index.ids[String(row[0])] = true;
       if (row[1]) index.messageIds[String(row[1])] = true;
       if (row[2]) index.urls[String(row[2])] = true;
@@ -306,21 +386,131 @@ var RadarCore = (function () {
     (opportunityRows || []).forEach(function (row) {
       if (row[0]) index.ids[String(row[0])] = true;
       if (row[7]) index.urls[String(row[7])] = true;
+      var contentKey = makeContentKey({ author: row[4], title: row[5] });
+      if (contentKey) index.contentKeys[contentKey] = String(row[0] || '');
     });
 
     return index;
   }
 
+  function reconcileRadarData(opportunityRows, processedRows, rules, thresholds) {
+    var decisions = {};
+    var candidates = [];
+    var summary = { removedTests: 0, invalidUrls: 0, contentDuplicates: 0 };
+
+    (opportunityRows || []).forEach(function (sourceRow, index) {
+      var row = (sourceRow || []).slice();
+      var id = String(row[0] || '');
+      var item = {
+        subreddit: row[3],
+        author: row[4],
+        title: row[5],
+        excerpt: row[6],
+        url: row[7]
+      };
+
+      if (isTestOrDemoOpportunity(item)) {
+        decisions[id] = { result: 'remove-test' };
+        summary.removedTests += 1;
+        return;
+      }
+
+      var normalizedUrl = normalizeRedditUrl(item.url);
+      if (!normalizedUrl) {
+        decisions[id] = { result: 'invalid' };
+        summary.invalidUrls += 1;
+        return;
+      }
+
+      item.url = normalizedUrl;
+      var scored = scoreOpportunity(item, rules, thresholds);
+      row[7] = normalizedUrl;
+      row[8] = scored.intent;
+      row[9] = scored.score;
+      row[10] = scored.matchedRules.join(', ');
+      row[11] = scored.priority;
+      candidates.push({
+        id: id,
+        index: index,
+        row: row,
+        score: scored.score,
+        contentKey: makeContentKey(item),
+        normalizedUrl: normalizedUrl
+      });
+    });
+
+    candidates.sort(function (left, right) {
+      return right.score - left.score || left.index - right.index;
+    });
+
+    var retainedByContentKey = {};
+    var retained = [];
+    candidates.forEach(function (candidate) {
+      var retainedId = candidate.contentKey && retainedByContentKey[candidate.contentKey];
+      if (retainedId) {
+        decisions[candidate.id] = {
+          result: 'duplicate',
+          retainedId: retainedId,
+          normalizedUrl: candidate.normalizedUrl
+        };
+        summary.contentDuplicates += 1;
+        return;
+      }
+
+      if (candidate.contentKey) {
+        retainedByContentKey[candidate.contentKey] = candidate.id;
+      }
+      decisions[candidate.id] = {
+        result: 'retained',
+        normalizedUrl: candidate.normalizedUrl
+      };
+      retained.push(candidate);
+    });
+
+    retained.sort(function (left, right) { return left.index - right.index; });
+
+    var reconciledProcessed = [];
+    (processedRows || []).forEach(function (sourceRow) {
+      var row = (sourceRow || []).slice();
+      var id = String(row[0] || '');
+      var decision = decisions[id];
+      if (!decision) {
+        reconciledProcessed.push(row);
+        return;
+      }
+      if (decision.result === 'remove-test') return;
+      if (decision.normalizedUrl) row[2] = decision.normalizedUrl;
+      if (decision.result === 'invalid') {
+        row[4] = 'ignored';
+        row[5] = 'Removed by data quality repair: invalid Reddit URL.';
+      } else if (decision.result === 'duplicate') {
+        row[4] = 'duplicate';
+        row[5] = 'Content duplicate of ' + decision.retainedId + '.';
+      }
+      reconciledProcessed.push(row);
+    });
+
+    return {
+      opportunityRows: retained.map(function (candidate) { return candidate.row; }),
+      processedRows: reconciledProcessed,
+      summary: summary
+    };
+  }
+
   return {
     normalizeRedditUrl: normalizeRedditUrl,
     parseF5BotAlert: parseF5BotAlert,
+    parseF5BotAlerts: parseF5BotAlerts,
     matchRule: matchRule,
     scoreOpportunity: scoreOpportunity,
     makeStableId: makeStableId,
+    makeContentKey: makeContentKey,
+    isTestOrDemoOpportunity: isTestOrDemoOpportunity,
     getRadarDefaults: getRadarDefaults,
     buildNotificationHtml: buildNotificationHtml,
     safeCellText: safeCellText,
-    buildDedupIndex: buildDedupIndex
+    buildDedupIndex: buildDedupIndex,
+    reconcileRadarData: reconcileRadarData
   };
 })();
 
